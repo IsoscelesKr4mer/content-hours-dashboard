@@ -1,0 +1,4920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Hours Dashboard | SnapStream</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5f7;
+    --panel:#ffffff;
+    --ink:#1c2330;
+    --ink-soft:#5b6573;
+    --line:#e4e7ec;
+    --line-soft:#eef0f3;
+    --accent:#2563d6;
+    --accent-soft:#eaf1fd;
+    --shadow:0 1px 2px rgba(16,24,40,.04),0 4px 16px rgba(16,24,40,.06);
+    --over:#d92d20; --over-bg:#fdeceb;
+    --near:#e07b00; --near-bg:#fdf1e1;
+    --under:#b88500; --under-bg:#fdf6e0;
+    --none:#697586; --none-bg:#eef0f3;
+    --ontrack:#197a4b; --ontrack-bg:#e6f4ec;
+    --stream:#52617a; --stream-bg:#eef1f6;
+    --audit:#7c4dcc; --audit-bg:#f1ebfc;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);
+    font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:32px 28px 64px}
+  header.page{margin-bottom:24px}
+  .titlerow{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+  h1{font-size:24px;font-weight:680;letter-spacing:-.02em;margin:0}
+  .pillbadge{font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-soft);
+    padding:4px 10px;border-radius:999px;letter-spacing:.01em}
+  .subtitle{color:var(--ink-soft);font-size:13.5px;margin-top:6px;max-width:680px}
+  .brandmark{display:inline-flex;align-items:center;gap:8px;font-weight:700;letter-spacing:-.01em;
+    color:var(--ink);font-size:13px;margin-bottom:14px}
+  .brandmark .dot{width:9px;height:9px;border-radius:2px;background:var(--accent);transform:rotate(45deg)}
+
+  /* KPI cards */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin:22px 0 26px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:15px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi .lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft)}
+  .kpi .val{font-size:28px;font-weight:700;letter-spacing:-.02em;margin-top:6px;line-height:1}
+  .kpi .accentbar{position:absolute;left:0;top:0;bottom:0;width:3px}
+  .kpi.over .accentbar{background:var(--over)} .kpi.over .val{color:var(--over)}
+  .kpi.near .accentbar{background:var(--near)} .kpi.near .val{color:var(--near)}
+  .kpi.under .accentbar{background:var(--under)} .kpi.under .val{color:var(--under)}
+  .kpi.none .accentbar{background:var(--none)} .kpi.none .val{color:var(--none)}
+  .kpi.audit .accentbar{background:var(--audit)} .kpi.audit .val{color:var(--audit)}
+  .kpi.total .accentbar{background:var(--accent)} .kpi.total .val{color:var(--accent)}
+
+  /* Filters */
+  .filters{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;background:var(--panel);
+    border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);margin-bottom:22px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft)}
+  select,input[type=text]{font:inherit;font-size:13.5px;color:var(--ink);background:#fff;
+    border:1px solid var(--line);border-radius:8px;padding:8px 11px;min-width:190px;outline:none;transition:border-color .12s,box-shadow .12s}
+  select:focus,input[type=text]:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .field.search input{min-width:230px}
+  .resetbtn{font:inherit;font-size:12.5px;font-weight:600;color:var(--ink-soft);background:transparent;
+    border:1px solid var(--line);border-radius:8px;padding:8px 14px;cursor:pointer;transition:.12s}
+  .resetbtn:hover{color:var(--ink);border-color:#cfd4dc}
+  .matchcount{margin-left:auto;font-size:12.5px;color:var(--ink-soft);align-self:center}
+
+  /* Section */
+  section.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-bottom:24px;overflow:hidden}
+  .card-head{padding:16px 20px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+  .card-head h2{font-size:15px;font-weight:650;margin:0;letter-spacing:-.01em}
+  .card-head .hint{font-size:12.5px;color:var(--ink-soft)}
+
+  /* Table */
+  .tbl-scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  thead th{position:sticky;top:0;background:#fbfbfc;text-align:left;font-weight:600;color:var(--ink-soft);
+    font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;padding:11px 14px;border-bottom:1px solid var(--line);
+    cursor:pointer;white-space:nowrap;user-select:none}
+  thead th.num{text-align:right}
+  thead th .arrow{opacity:.35;font-size:10px;margin-left:3px}
+  thead th.sorted .arrow{opacity:1;color:var(--accent)}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+  tbody td.num{text-align:right;font-variant-numeric:tabular-nums}
+  tbody tr{cursor:pointer;transition:background .1s}
+  tbody tr:hover{background:#fafbfe}
+  tbody tr:last-child td{border-bottom:none}
+  .cust-name{font-weight:600;color:var(--ink)}
+  .muted{color:var(--ink-soft)}
+
+  /* Progress mini bar in cells */
+  .barcell{display:flex;align-items:center;gap:8px;min-width:120px}
+  .bartrack{flex:1;height:6px;background:var(--line);border-radius:99px;overflow:hidden;min-width:54px}
+  .barfill{height:100%;border-radius:99px}
+  .barpct{font-variant-numeric:tabular-nums;font-weight:600;min-width:38px;text-align:right}
+
+  /* Status pill */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;
+    padding:3px 10px;border-radius:999px;letter-spacing:.01em;white-space:nowrap}
+  .pill::before{content:"";width:6px;height:6px;border-radius:99px;background:currentColor;opacity:.9}
+  .pill.OVER{color:var(--over);background:var(--over-bg)}
+  .pill.NEAR{color:var(--near);background:var(--near-bg)}
+  .pill.UNDER{color:var(--under);background:var(--under-bg)}
+  .pill.NONE{color:var(--none);background:var(--none-bg)}
+  .pill.ONTRACK{color:var(--ontrack);background:var(--ontrack-bg)}
+  .pill.STREAM{color:var(--stream);background:var(--stream-bg)}
+  .pill.AUDIT{color:var(--audit);background:var(--audit-bg)}
+  .empty{padding:34px;text-align:center;color:var(--ink-soft);font-size:13.5px}
+
+  /* Drawer */
+  .scrim{position:fixed;inset:0;background:rgba(16,24,40,.32);opacity:0;pointer-events:none;
+    transition:opacity .2s;z-index:40}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:520px;max-width:94vw;background:var(--panel);
+    box-shadow:-8px 0 40px rgba(16,24,40,.18);transform:translateX(100%);transition:transform .24s cubic-bezier(.4,0,.2,1);
+    z-index:50;display:flex;flex-direction:column}
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{padding:22px 24px 16px;border-bottom:1px solid var(--line-soft)}
+  .drawer-head .dh-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .drawer-head h3{margin:0;font-size:19px;font-weight:680;letter-spacing:-.02em}
+  .drawer-head .meta{color:var(--ink-soft);font-size:12.5px;margin-top:4px}
+  .closebtn{border:none;background:var(--none-bg);width:30px;height:30px;border-radius:8px;cursor:pointer;
+    font-size:17px;color:var(--ink-soft);line-height:1;flex-shrink:0}
+  .closebtn:hover{background:var(--line);color:var(--ink)}
+  .drawer-body{padding:20px 24px 30px;overflow-y:auto}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:4px 0 18px}
+  .stat{background:#fbfbfc;border:1px solid var(--line-soft);border-radius:10px;padding:12px 13px}
+  .stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:600}
+  .stat .v{font-size:18px;font-weight:680;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat .v small{font-size:12px;color:var(--ink-soft);font-weight:500}
+  .blocklabel{font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:600;margin:18px 0 8px}
+  .bigbar{height:14px;background:var(--line);border-radius:99px;overflow:hidden;position:relative}
+  .bigbar .fill{height:100%;border-radius:99px;transition:width .3s}
+  .bigbar-meta{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:7px;font-variant-numeric:tabular-nums}
+  .chartbox{position:relative;height:230px;margin-top:6px}
+  .legend-inline{display:flex;gap:16px;font-size:12px;color:var(--ink-soft);margin-top:12px}
+  .legend-inline .sw{display:inline-flex;align-items:center;gap:6px}
+  .legend-inline .sw i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  @media (max-width:1080px){
+    .kpis{grid-template-columns:repeat(3,1fr)}
+  }
+  @media (max-width:640px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .wrap{padding:20px 14px 48px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <div class="brandmark"><span class="dot"></span>SnapStream</div>
+    <div class="titlerow">
+      <h1>Content Hours Dashboard</h1>
+      <span class="pillbadge" id="genlabel"></span>
+      <span class="pillbadge" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d;">Demo data — customer names anonymized</span>
+    </div>
+    <p class="subtitle">Term-to-date content-hours consumption across the contracted book, with uncontracted usage flagged for audit. Click any customer for monthly detail.</p>
+    <p class="subtitle" style="font-style:italic;opacity:.8;">Demo data — customer names anonymized.</p>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="filters">
+    <div class="field">
+      <label for="f-csm">CSM</label>
+      <select id="f-csm"></select>
+    </div>
+    <div class="field">
+      <label for="f-status">Status</label>
+      <select id="f-status"></select>
+    </div>
+    <div class="field search">
+      <label for="f-search">Search customer</label>
+      <input type="text" id="f-search" placeholder="Type a name...">
+    </div>
+    <button class="resetbtn" id="reset">Reset</button>
+    <span class="matchcount" id="matchcount"></span>
+  </div>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Contracted Customers</h2>
+      <span class="hint">Hourly &amp; Stream Only — click a row for detail</span>
+    </div>
+    <div class="tbl-scroll">
+      <table id="main-tbl">
+        <thead><tr id="main-head"></tr></thead>
+        <tbody id="main-body"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="main-empty" style="display:none">No customers match the current filters.</div>
+  </section>
+
+  <section class="card">
+    <div class="card-head">
+      <h2>Needs Audit</h2>
+      <span class="hint">Usage in the export with no contracted hours on file. Sorted by 12-mo total.</span>
+    </div>
+    <div class="tbl-scroll">
+      <table id="audit-tbl">
+        <thead><tr>
+          <th>Customer</th>
+          <th class="num">12-mo Total (hrs)</th>
+        </tr></thead>
+        <tbody id="audit-body"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div class="dh-top">
+      <div>
+        <h3 id="d-name"></h3>
+        <div class="meta" id="d-meta"></div>
+      </div>
+      <button class="closebtn" id="d-close" aria-label="Close">&times;</button>
+    </div>
+  </div>
+  <div class="drawer-body">
+    <div class="stat-grid" id="d-stats"></div>
+    <div class="blocklabel">Allotment vs. Term-to-date Used</div>
+    <div class="bigbar"><div class="fill" id="d-bigfill"></div></div>
+    <div class="bigbar-meta"><span id="d-barleft"></span><span id="d-barright"></span></div>
+    <div class="blocklabel">Monthly Content Hours (Jun '25 – May '26)</div>
+    <div class="chartbox"><canvas id="d-chart"></canvas></div>
+    <div class="legend-inline" id="d-legend"></div>
+  </div>
+</aside>
+
+<script id="DATA" type="application/json">{
+  "customers": [
+    {
+      "name": "Northwind Media",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 7000,
+      "term_start": "2025-09-30",
+      "term_end": "2026-09-30",
+      "term_used_hrs": 4182.2,
+      "pct_consumed": 0.5975,
+      "pct_term_elapsed": 0.6658,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 5264.4
+    },
+    {
+      "name": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 500,
+      "term_start": "2025-10-31",
+      "term_end": "2026-10-31",
+      "term_used_hrs": 332.9,
+      "pct_consumed": 0.6658,
+      "pct_term_elapsed": 0.5808,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 510.4
+    },
+    {
+      "name": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 500,
+      "term_start": "2026-05-08",
+      "term_end": "2027-05-08",
+      "term_used_hrs": 136.6,
+      "pct_consumed": 0.2732,
+      "pct_term_elapsed": 0.063,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 390.7
+    },
+    {
+      "name": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 250,
+      "term_start": "2025-12-18",
+      "term_end": "2026-12-18",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.4493,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 250,
+      "term_start": "2025-11-30",
+      "term_end": "2026-11-30",
+      "term_used_hrs": 33.3,
+      "pct_consumed": 0.1332,
+      "pct_term_elapsed": 0.4986,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 33.3
+    },
+    {
+      "name": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 150,
+      "term_start": "2026-03-14",
+      "term_end": "2027-03-14",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.2137,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 100,
+      "term_start": "2026-01-21",
+      "term_end": "2027-01-21",
+      "term_used_hrs": 21.6,
+      "pct_consumed": 0.216,
+      "pct_term_elapsed": 0.3562,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 108.4
+    },
+    {
+      "name": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "IPTV",
+      "allotment_hrs": 50,
+      "term_start": "2025-06-30",
+      "term_end": "2026-06-30",
+      "term_used_hrs": 154.1,
+      "pct_consumed": 3.082,
+      "pct_term_elapsed": 0.9178,
+      "status": "OVER",
+      "total_12mo_hrs": 154.1
+    },
+    {
+      "name": "Vantage Software",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 50,
+      "term_start": "2025-05-31",
+      "term_end": "2026-05-31",
+      "term_used_hrs": 1.4,
+      "pct_consumed": 0.028,
+      "pct_term_elapsed": 1.0,
+      "status": "UNDERUSED",
+      "total_12mo_hrs": 1.4
+    },
+    {
+      "name": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 15,
+      "term_start": "2025-07-31",
+      "term_end": "2026-07-31",
+      "term_used_hrs": 0.1,
+      "pct_consumed": 0.0067,
+      "pct_term_elapsed": 0.8329,
+      "status": "UNDERUSED",
+      "total_12mo_hrs": 0.6
+    },
+    {
+      "name": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "category": "Hourly",
+      "product_type": "Live Events;Custom Streams",
+      "allotment_hrs": 14,
+      "term_start": "2026-02-13",
+      "term_end": "2027-02-13",
+      "term_used_hrs": 0.5,
+      "pct_consumed": 0.0357,
+      "pct_term_elapsed": 0.2932,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 0.5
+    },
+    {
+      "name": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 500,
+      "term_start": "2026-03-01",
+      "term_end": "2027-03-01",
+      "term_used_hrs": 31.9,
+      "pct_consumed": 0.0638,
+      "pct_term_elapsed": 0.2493,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 46.3
+    },
+    {
+      "name": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 350,
+      "term_start": "2025-07-31",
+      "term_end": "2026-07-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.8329,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 250,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 47.6,
+      "pct_consumed": 0.1904,
+      "pct_term_elapsed": null,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 33.9
+    },
+    {
+      "name": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 135,
+      "term_start": "2026-01-01",
+      "term_end": "2027-01-01",
+      "term_used_hrs": 247.7,
+      "pct_consumed": 1.8348,
+      "pct_term_elapsed": 0.411,
+      "status": "OVER",
+      "total_12mo_hrs": 330.8
+    },
+    {
+      "name": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 50,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 8.1,
+      "pct_consumed": 0.162,
+      "pct_term_elapsed": 0.4137,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 40.8
+    },
+    {
+      "name": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 50,
+      "term_start": "2026-01-31",
+      "term_end": "2027-01-31",
+      "term_used_hrs": 4.0,
+      "pct_consumed": 0.08,
+      "pct_term_elapsed": 0.3288,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 4.0
+    },
+    {
+      "name": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 50,
+      "term_start": "2026-04-14",
+      "term_end": "2027-04-14",
+      "term_used_hrs": 114.1,
+      "pct_consumed": 2.282,
+      "pct_term_elapsed": 0.1288,
+      "status": "OVER",
+      "total_12mo_hrs": 168.0
+    },
+    {
+      "name": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 25,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.4137,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 15,
+      "term_start": "2025-08-14",
+      "term_end": "2026-08-14",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.7945,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 4000,
+      "term_start": "2025-09-30",
+      "term_end": "2026-09-30",
+      "term_used_hrs": 2471.6,
+      "pct_consumed": 0.6179,
+      "pct_term_elapsed": 0.6658,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 3433.2
+    },
+    {
+      "name": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 2050,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 683.4,
+      "pct_consumed": 0.3334,
+      "pct_term_elapsed": 0.4137,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 1615.9
+    },
+    {
+      "name": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 600,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 172.8,
+      "pct_consumed": 0.288,
+      "pct_term_elapsed": 0.4137,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 565.2
+    },
+    {
+      "name": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Content Creator",
+      "allotment_hrs": 500,
+      "term_start": "2025-07-06",
+      "term_end": "2026-07-06",
+      "term_used_hrs": 549.3,
+      "pct_consumed": 1.0986,
+      "pct_term_elapsed": 0.9014,
+      "status": "OVER",
+      "total_12mo_hrs": 549.3
+    },
+    {
+      "name": "Twofold Television",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting",
+      "allotment_hrs": 500,
+      "term_start": "2026-02-28",
+      "term_end": "2027-02-28",
+      "term_used_hrs": 104.8,
+      "pct_consumed": 0.2096,
+      "pct_term_elapsed": 0.2521,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 802.4
+    },
+    {
+      "name": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 250,
+      "term_start": "2026-03-31",
+      "term_end": "2027-03-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.1671,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 18.6
+    },
+    {
+      "name": "Echo Media",
+      "csm": "Tracy Begic",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 60,
+      "term_start": "2025-09-26",
+      "term_end": "2026-09-26",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.6767,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting;Live Events;Custom Streams",
+      "allotment_hrs": 1000,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 291.5,
+      "pct_consumed": 0.2915,
+      "pct_term_elapsed": 0.4137,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 598.5
+    },
+    {
+      "name": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 300,
+      "term_start": "2026-02-07",
+      "term_end": "2027-02-07",
+      "term_used_hrs": 73.5,
+      "pct_consumed": 0.245,
+      "pct_term_elapsed": 0.3096,
+      "status": "ON TRACK",
+      "total_12mo_hrs": 244.7
+    },
+    {
+      "name": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "category": "Hourly",
+      "product_type": "Cloud",
+      "allotment_hrs": 125,
+      "term_start": "2025-09-14",
+      "term_end": "2026-09-14",
+      "term_used_hrs": 183.6,
+      "pct_consumed": 1.4688,
+      "pct_term_elapsed": 0.7096,
+      "status": "OVER",
+      "total_12mo_hrs": 195.9
+    },
+    {
+      "name": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "category": "Hourly",
+      "product_type": "Cloud w/ Managed TV Hosting;Custom Streams",
+      "allotment_hrs": 50,
+      "term_start": "2026-03-31",
+      "term_end": "2027-03-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.1671,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 27.2
+    },
+    {
+      "name": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 557,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.4137,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 63.9
+    },
+    {
+      "name": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 250,
+      "term_start": "2026-01-14",
+      "term_end": "2027-01-14",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.3753,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 218.4
+    },
+    {
+      "name": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 50,
+      "term_start": "2025-12-31",
+      "term_end": "2026-12-31",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.4137,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "category": "Hourly",
+      "product_type": "Live Events",
+      "allotment_hrs": 50,
+      "term_start": "2025-06-28",
+      "term_end": "2026-06-28",
+      "term_used_hrs": 0,
+      "pct_consumed": 0.0,
+      "pct_term_elapsed": 0.9233,
+      "status": "NO USAGE",
+      "total_12mo_hrs": 0.0
+    },
+    {
+      "name": "Midwest Signal",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 5599.2,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 5599.2
+    },
+    {
+      "name": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 2131.5,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 2131.5
+    },
+    {
+      "name": "Anonymous Org",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 1709.4,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 1709.4
+    },
+    {
+      "name": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 71.8,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 71.8
+    },
+    {
+      "name": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 448.0,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 448.0
+    },
+    {
+      "name": "The Nightly Report",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 473.3,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 473.3
+    },
+    {
+      "name": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 147.1,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 147.1
+    },
+    {
+      "name": "Vellum TV",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 2.7,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 2.7
+    },
+    {
+      "name": "Quantum Metrics",
+      "csm": "Unknown",
+      "category": "Needs Audit",
+      "product_type": null,
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 18.4,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "NEEDS AUDIT",
+      "total_12mo_hrs": 18.4
+    },
+    {
+      "name": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "category": "Stream Only",
+      "product_type": "Stream Access",
+      "allotment_hrs": null,
+      "term_start": null,
+      "term_end": null,
+      "term_used_hrs": 215.9,
+      "pct_consumed": null,
+      "pct_term_elapsed": null,
+      "status": "STREAM ONLY",
+      "total_12mo_hrs": 215.9
+    }
+  ],
+  "monthly": [
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 191.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 267.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 348.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 293.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 501.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 365.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 356.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 723.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 595.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 572.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 504.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Northwind Media",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 545.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 16.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 37.2,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 35.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 55.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 32.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 32.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 31.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 47.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 30.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 40.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 74.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Atlas Public Affairs",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 76.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 22.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 20.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 6.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 2.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 63.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 104.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Beacon Sports Group",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 171.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Harbor Point Strategies",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 7.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 15.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cedar Creek Broadcasting",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 10.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Meridian Civic Trust",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 45.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 29.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 11.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 3.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 9.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Lantern Foundation",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 8.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Summit Ridge Initiative",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 154.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vantage Software",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 1.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Crossroads Coalition",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Liberty Bell Rights Group",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 0.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 14.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 15.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 7.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Ironwood Media Corp",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 9.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Prairie Star Communications",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 1.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 27.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Frontier Action Network",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 4.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 53.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 7.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 22.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 247.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Global Forum Institute",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 32.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 8.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sentinel Security Summit",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 4.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Cloudpeak Systems",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 3.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 7.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 18.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 3.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 4.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 2.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 4.2,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 120.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Dispatch Global",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 2.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Evergreen Holdings",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Patriot Civic League",
+      "csm": "Eric Weisbrod",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 173.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 367.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 4.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 416.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 5.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 168.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 457.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 355.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 290.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 466.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 454.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Capitol Recording Studio",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 273.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 68.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 144.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 132.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 136.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 170.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 139.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 145.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 131.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 122.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 135.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 135.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Compass Solutions",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 153.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 44.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 116.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 52.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 73.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 32.2,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 18.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 54.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 65.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 76.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 30.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Obsidian Media Network",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 42.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 41.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 120.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 83.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 30.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 23.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 36.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 29.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 40.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 62.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Daily Ledger",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 40.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 56.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 68.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 56.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 76.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 138.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 91.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 51.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 144.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 13.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 27.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 21.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Twofold Television",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 56.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 3.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 15.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Worldwide Leadership Council",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Echo Media",
+      "csm": "Tracy Begic",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-06",
+      "hours": 45.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-07",
+      "hours": 27.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-08",
+      "hours": 9.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-09",
+      "hours": 66.2,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-10",
+      "hours": 74.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-11",
+      "hours": 46.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2025-12",
+      "hours": 37.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2026-01",
+      "hours": 42.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2026-02",
+      "hours": 33.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2026-03",
+      "hours": 42.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2026-04",
+      "hours": 118.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Maritime Policy Council",
+      "csm": "Jill McDevitt",
+      "month": "2026-05",
+      "hours": 54.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-06",
+      "hours": 30.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-09",
+      "hours": 27.2,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-11",
+      "hours": 51.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2025-12",
+      "hours": 24.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2026-01",
+      "hours": 25.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2026-02",
+      "hours": 21.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2026-03",
+      "hours": 24.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2026-04",
+      "hours": 9.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sterling Press",
+      "csm": "Jill McDevitt",
+      "month": "2026-05",
+      "hours": 30.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-06",
+      "hours": 8.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-07",
+      "hours": 2.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-09",
+      "hours": 46.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-10",
+      "hours": 17.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-11",
+      "hours": 13.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2025-12",
+      "hours": 12.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2026-01",
+      "hours": 31.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2026-02",
+      "hours": 2.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2026-03",
+      "hours": 28.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2026-04",
+      "hours": 21.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Pinnacle Media",
+      "csm": "Jill McDevitt",
+      "month": "2026-05",
+      "hours": 10.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-06",
+      "hours": 3.6,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-07",
+      "hours": 1.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-09",
+      "hours": 2.4,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-10",
+      "hours": 1.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2025-12",
+      "hours": 4.7,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2026-01",
+      "hours": 4.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2026-02",
+      "hours": 4.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2026-03",
+      "hours": 4.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Forward Policy Center",
+      "csm": "Jill McDevitt",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-07",
+      "hours": 8.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-09",
+      "hours": 6.1,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-10",
+      "hours": 25.9,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-11",
+      "hours": 23.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quartz Data Group",
+      "csm": "Zanik Bartelt",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-06",
+      "hours": 25.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-07",
+      "hours": 40.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-08",
+      "hours": 59.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-09",
+      "hours": 53.5,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-10",
+      "hours": 34.3,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-11",
+      "hours": 4.8,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Diamond Dawgs",
+      "csm": "Zanik Bartelt",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": false
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Reel Vista Productions",
+      "csm": "Zanik Bartelt",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Morning Bulletin",
+      "csm": "Unassigned",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 751.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 771.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 748.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 938.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 848.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 733.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 768.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 40.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Midwest Signal",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 132.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 231.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 308.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 253.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 212.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 520.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 267.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 175.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 29.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Tribune Daily (Hearst)",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 1169.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 350.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 189.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Anonymous Org",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 9.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 5.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 41.5,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Metro Civic Center (TRI)",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 14.8,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 81.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 336.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 30.7,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Federal Affairs Bureau",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 27.2,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 415.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 30.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "The Nightly Report",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Sharp Shooter LLC (A. Commentator)",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 147.1,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.3,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Vellum TV",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 2.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2026-01",
+      "hours": 18.4,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2026-03",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2026-04",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Quantum Metrics",
+      "csm": "Unknown",
+      "month": "2026-05",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-06",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-07",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-08",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-09",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-10",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-11",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2025-12",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2026-01",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2026-02",
+      "hours": 0.0,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2026-03",
+      "hours": 36.6,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2026-04",
+      "hours": 76.9,
+      "in_current_cycle": true
+    },
+    {
+      "customer": "Apex Strategic (J. Founder)",
+      "csm": "Michael Dixon",
+      "month": "2026-05",
+      "hours": 102.4,
+      "in_current_cycle": true
+    }
+  ],
+  "generated_label": "Data through May 2026"
+}</script>
+<script>
+"use strict";
+const DATA = JSON.parse(document.getElementById("DATA").textContent);
+const CUSTOMERS = DATA.customers;
+const MONTHLY = DATA.monthly;
+
+// status -> {label, cls}
+const STATUS_META = {
+  "OVER":{cls:"OVER",label:"Over"},
+  "NEAR LIMIT":{cls:"NEAR",label:"Near Limit"},
+  "UNDERUSED":{cls:"UNDER",label:"Underused"},
+  "NO USAGE":{cls:"NONE",label:"No Usage"},
+  "ON TRACK":{cls:"ONTRACK",label:"On Track"},
+  "STREAM ONLY":{cls:"STREAM",label:"Stream Only"},
+  "NEEDS AUDIT":{cls:"AUDIT",label:"Needs Audit"},
+};
+const STATUS_COLOR = {
+  "OVER":"#d92d20","NEAR LIMIT":"#e07b00","UNDERUSED":"#b88500",
+  "NO USAGE":"#697586","ON TRACK":"#197a4b","STREAM ONLY":"#52617a","NEEDS AUDIT":"#7c4dcc"
+};
+
+document.getElementById("genlabel").textContent = DATA.generated_label;
+
+// ---- monthly index by customer ----
+const MONTHLY_BY_CUST = {};
+MONTHLY.forEach(r=>{ (MONTHLY_BY_CUST[r.customer] ??= []).push(r); });
+Object.values(MONTHLY_BY_CUST).forEach(a=>a.sort((x,y)=>x.month<y.month?-1:1));
+
+const fmtHrs = v => v==null ? "—" : v.toLocaleString(undefined,{maximumFractionDigits:1});
+const fmtPct = v => v==null ? "—" : Math.round(v*100)+"%";
+
+// table customers = Hourly + Stream Only
+const TABLE_CUSTOMERS = CUSTOMERS.filter(c=>c.category==="Hourly"||c.category==="Stream Only");
+const AUDIT_CUSTOMERS = CUSTOMERS.filter(c=>c.category==="Needs Audit")
+  .sort((a,b)=>b.total_12mo_hrs-a.total_12mo_hrs);
+
+// ---- filter controls population ----
+const csmSel = document.getElementById("f-csm");
+const statusSel = document.getElementById("f-status");
+const searchInp = document.getElementById("f-search");
+
+const csms = [...new Set(TABLE_CUSTOMERS.map(c=>c.csm))].sort();
+csmSel.innerHTML = '<option value="">All CSMs</option>' + csms.map(c=>`<option>${c}</option>`).join("");
+const statuses = [...new Set(TABLE_CUSTOMERS.map(c=>c.status))]
+  .sort((a,b)=>Object.keys(STATUS_META).indexOf(a)-Object.keys(STATUS_META).indexOf(b));
+statusSel.innerHTML = '<option value="">All Statuses</option>' + statuses.map(s=>`<option value="${s}">${STATUS_META[s].label}</option>`).join("");
+
+// ---- sort state ----
+const COLS = [
+  {key:"name",label:"Customer",num:false},
+  {key:"csm",label:"CSM",num:false},
+  {key:"allotment_hrs",label:"Allotment",num:true},
+  {key:"term_used_hrs",label:"Used",num:true},
+  {key:"pct_consumed",label:"% Consumed",num:true},
+  {key:"pct_term_elapsed",label:"% Term Elapsed",num:true},
+  {key:"status",label:"Status",num:false},
+];
+let sortKey="pct_consumed", sortDir=-1;
+
+const headRow = document.getElementById("main-head");
+headRow.innerHTML = COLS.map(c=>
+  `<th data-key="${c.key}" class="${c.num?'num':''}">${c.label}<span class="arrow"></span></th>`
+).join("");
+headRow.querySelectorAll("th").forEach(th=>{
+  th.addEventListener("click",()=>{
+    const k=th.dataset.key;
+    if(sortKey===k){ sortDir*=-1; } else { sortKey=k; sortDir = (k==="name"||k==="csm"||k==="status")?1:-1; }
+    render();
+  });
+});
+
+function currentFilters(){
+  return {csm:csmSel.value, status:statusSel.value, q:searchInp.value.trim().toLowerCase()};
+}
+function applyFilter(list){
+  const f=currentFilters();
+  return list.filter(c=>{
+    if(f.csm && c.csm!==f.csm) return false;
+    if(f.status && c.status!==f.status) return false;
+    if(f.q && !c.name.toLowerCase().includes(f.q)) return false;
+    return true;
+  });
+}
+
+function cmp(a,b){
+  let av=a[sortKey], bv=b[sortKey];
+  if(av==null && bv==null) return 0;
+  if(av==null) return 1;   // nulls last
+  if(bv==null) return -1;
+  if(typeof av==="string"){ return av.localeCompare(bv)*sortDir; }
+  return (av-bv)*sortDir;
+}
+
+function statusPill(status){
+  const m=STATUS_META[status];
+  return `<span class="pill ${m.cls}">${m.label}</span>`;
+}
+function barCell(pct){
+  if(pct==null) return '<span class="muted">—</span>';
+  const clamped=Math.min(pct,1);
+  let color="var(--ontrack)";
+  if(pct>=1) color="var(--over)"; else if(pct>=0.8) color="var(--near)";
+  else if(pct<=0.25) color="var(--under)";
+  return `<div class="barcell"><span class="barpct">${Math.round(pct*100)}%</span>`+
+    `<div class="bartrack"><div class="barfill" style="width:${(clamped*100).toFixed(0)}%;background:${color}"></div></div></div>`;
+}
+
+function render(){
+  // KPI recompute on filtered Hourly+Audit set relevant subset
+  const filteredTable = applyFilter(TABLE_CUSTOMERS);
+  // For KPIs we count across Hourly (+stream none) per spec: OVER/NEAR/UNDER/NO USAGE from hourly,
+  // NEEDS AUDIT from audit set filtered by same csm/search where applicable.
+  renderKPIs(filteredTable);
+
+  // header arrows
+  headRow.querySelectorAll("th").forEach(th=>{
+    th.classList.toggle("sorted", th.dataset.key===sortKey);
+    th.querySelector(".arrow").textContent = th.dataset.key===sortKey ? (sortDir===1?"▲":"▼") : "↕";
+  });
+
+  const rows = filteredTable.slice().sort(cmp);
+  const body=document.getElementById("main-body");
+  const empty=document.getElementById("main-empty");
+  if(rows.length===0){ body.innerHTML=""; empty.style.display="block"; }
+  else { empty.style.display="none";
+    body.innerHTML = rows.map(c=>`
+      <tr data-name="${encodeURIComponent(c.name)}">
+        <td class="cust-name">${c.name}</td>
+        <td class="muted">${c.csm}</td>
+        <td class="num">${c.allotment_hrs==null?'<span class="muted">n/a</span>':fmtHrs(c.allotment_hrs)}</td>
+        <td class="num">${fmtHrs(c.term_used_hrs)}</td>
+        <td class="num">${barCell(c.pct_consumed)}</td>
+        <td class="num">${c.pct_term_elapsed==null?'<span class="muted">n/a</span>':fmtPct(c.pct_term_elapsed)}</td>
+        <td>${statusPill(c.status)}</td>
+      </tr>`).join("");
+    body.querySelectorAll("tr").forEach(tr=>{
+      tr.addEventListener("click",()=>openDrawer(decodeURIComponent(tr.dataset.name)));
+    });
+  }
+  document.getElementById("matchcount").textContent =
+    `${rows.length} of ${TABLE_CUSTOMERS.length} contracted shown`;
+}
+
+function renderKPIs(filteredTable){
+  const f=currentFilters();
+  const count = s => filteredTable.filter(c=>c.status===s).length;
+  // Needs Audit respects CSM(=Unknown so only when All) + search
+  let auditSet = AUDIT_CUSTOMERS;
+  if(f.csm) auditSet = []; // audit rows have csm "Unknown"
+  if(f.q) auditSet = auditSet.filter(c=>c.name.toLowerCase().includes(f.q));
+  if(f.status && f.status!=="NEEDS AUDIT") auditSet=[]; else if(f.status && f.status==="NEEDS AUDIT"){}
+  const totalUsed = filteredTable.reduce((s,c)=>s+(c.term_used_hrs||0),0);
+  const cards = [
+    {cls:"over",lbl:"Over",val:count("OVER")},
+    {cls:"near",lbl:"Near Limit",val:count("NEAR LIMIT")},
+    {cls:"under",lbl:"Underused",val:count("UNDERUSED")},
+    {cls:"none",lbl:"No Usage",val:count("NO USAGE")},
+    {cls:"audit",lbl:"Needs Audit",val:auditSet.length},
+    {cls:"total",lbl:"Term-Used Hrs",val:fmtHrs(Math.round(totalUsed*10)/10)},
+  ];
+  document.getElementById("kpis").innerHTML = cards.map(c=>
+    `<div class="kpi ${c.cls}"><span class="accentbar"></span>
+       <div class="lbl">${c.lbl}</div><div class="val">${c.val}</div></div>`).join("");
+}
+
+// ---- audit table ----
+document.getElementById("audit-body").innerHTML = AUDIT_CUSTOMERS.map(c=>`
+  <tr data-name="${encodeURIComponent(c.name)}">
+    <td class="cust-name">${c.name}</td>
+    <td class="num">${fmtHrs(c.total_12mo_hrs)}</td>
+  </tr>`).join("");
+document.querySelectorAll("#audit-body tr").forEach(tr=>{
+  tr.addEventListener("click",()=>openDrawer(decodeURIComponent(tr.dataset.name)));
+});
+
+// ---- drawer + chart ----
+let chart=null;
+const scrim=document.getElementById("scrim");
+const drawer=document.getElementById("drawer");
+
+function openDrawer(name){
+  const c=CUSTOMERS.find(x=>x.name===name);
+  if(!c) return;
+  document.getElementById("d-name").textContent=c.name;
+  const metaBits=[c.csm, c.product_type||c.category];
+  document.getElementById("d-meta").innerHTML = metaBits.filter(Boolean).join(" · ") + "  " + statusPill(c.status);
+
+  const stats=[];
+  stats.push({k:"Allotment",v: c.allotment_hrs==null?'n/a':`${fmtHrs(c.allotment_hrs)} <small>hrs</small>`});
+  stats.push({k:"Term-to-date Used",v:`${fmtHrs(c.term_used_hrs)} <small>hrs</small>`});
+  stats.push({k:"% Consumed",v: c.pct_consumed==null?'n/a':fmtPct(c.pct_consumed)});
+  stats.push({k:"% Term Elapsed",v: c.pct_term_elapsed==null?'n/a':fmtPct(c.pct_term_elapsed)});
+  document.getElementById("d-stats").innerHTML = stats.map(s=>
+    `<div class="stat"><div class="k">${s.k}</div><div class="v">${s.v}</div></div>`).join("");
+
+  // big bar
+  const fill=document.getElementById("d-bigfill");
+  if(c.allotment_hrs==null || c.pct_consumed==null){
+    fill.style.width="0%"; fill.style.background="var(--none)";
+    document.getElementById("d-barleft").textContent = "No allotment on file";
+    document.getElementById("d-barright").textContent = `${fmtHrs(c.term_used_hrs)} hrs used`;
+  } else {
+    const pct=c.pct_consumed;
+    let color="var(--ontrack)";
+    if(pct>=1)color="var(--over)"; else if(pct>=0.8)color="var(--near)"; else if(pct<=0.25)color="var(--under)";
+    fill.style.width=Math.min(pct,1)*100+"%"; fill.style.background=color;
+    document.getElementById("d-barleft").textContent = `${fmtHrs(c.term_used_hrs)} / ${fmtHrs(c.allotment_hrs)} hrs (${Math.round(pct*100)}%)`;
+    const win = (c.term_start&&c.term_end)? `${c.term_start} → ${c.term_end}` : "Trailing 12 months";
+    document.getElementById("d-barright").textContent = win;
+  }
+
+  // chart
+  const rows = MONTHLY_BY_CUST[c.name] || [];
+  const labels = rows.map(r=>{
+    const [y,m]=r.month.split("-");
+    const names=["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return names[+m]+" '"+y.slice(2);
+  });
+  const vals = rows.map(r=>r.hours);
+  const colors = rows.map(r=> r.in_current_cycle ? "#2563d6" : "#cbd2dc");
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById("d-chart"),{
+    type:"bar",
+    data:{labels, datasets:[{data:vals, backgroundColor:colors, borderRadius:4, maxBarThickness:34}]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.parsed.y.toLocaleString(undefined,{maximumFractionDigits:1})} hrs`}}},
+      scales:{
+        x:{grid:{display:false}, ticks:{font:{size:10}, color:"#5b6573"}},
+        y:{beginAtZero:true, grid:{color:"#eef0f3"}, ticks:{font:{size:10}, color:"#5b6573"}}
+      }
+    }
+  });
+
+  const hasPrior = rows.some(r=>!r.in_current_cycle);
+  const legend=document.getElementById("d-legend");
+  if(c.term_start){
+    legend.innerHTML = `<span class="sw"><i style="background:#2563d6"></i>Current cycle</span>` +
+      (hasPrior?`<span class="sw"><i style="background:#cbd2dc"></i>Prior cycle</span>`:"");
+  } else {
+    legend.innerHTML = `<span class="sw"><i style="background:#2563d6"></i>Trailing 12 months</span>`;
+  }
+
+  scrim.classList.add("open"); drawer.classList.add("open"); drawer.setAttribute("aria-hidden","false");
+}
+function closeDrawer(){
+  scrim.classList.remove("open"); drawer.classList.remove("open"); drawer.setAttribute("aria-hidden","true");
+}
+scrim.addEventListener("click",closeDrawer);
+document.getElementById("d-close").addEventListener("click",closeDrawer);
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDrawer(); });
+
+// ---- filter listeners ----
+[csmSel,statusSel].forEach(el=>el.addEventListener("change",render));
+searchInp.addEventListener("input",render);
+document.getElementById("reset").addEventListener("click",()=>{
+  csmSel.value=""; statusSel.value=""; searchInp.value=""; render();
+});
+
+render();
+</script>
+</body>
+</html>
